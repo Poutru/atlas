@@ -44,3 +44,7 @@ ATLAS_DATA="$PWD/.local/data" php -S localhost:8080 -t web/public web/public/rou
 - [Документация исходного CLI](docs/upstream-README.md).
 
 Боевая ветка: `codex/production`. Развёртывание выполняется явно по проверенному коммиту. Workflow исходного проекта, обращавшийся к инфраструктуре Onym, отключён и сохранён только как исторический пример.
+
+## Simple backup
+
+На том же домене работает [Simple backup](https://atlas.predhit.com/simple-backup/) — самостоятельный оператор зашифрованных резервных копий Onym. Код, изменения относительно референса и инструкции: [services/simple-backup](services/simple-backup/README.md). Каталог Atlas и хранилище работают отдельными процессами с разными ключами.

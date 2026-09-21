@@ -53,3 +53,11 @@ jobs:
         run: php web/tests/protocol.php
       - name: Atlas lifecycle integration tests
         run: ATLAS_CLI="$PWD/target/release/onym-discovery" php web/tests/integration.php
+
+  simple-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Backup operator tests
+        run: cargo test --locked --manifest-path services/simple-backup/operator/Cargo.toml

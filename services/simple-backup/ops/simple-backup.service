@@ -1,0 +1,31 @@
+[Unit]
+Description=Simple backup — Onym sealed snapshot storage
+After=network.target
+RequiresMountsFor=/var/lib/simple-backup
+
+[Service]
+Type=simple
+User=simple-backup
+Group=simple-backup
+EnvironmentFile=/etc/simple-backup/service.env
+ExecStart=/opt/simple-backup/bin/onym-backup-operator
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/simple-backup
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=384M
+CPUQuota=100%
+TasksMax=64
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
