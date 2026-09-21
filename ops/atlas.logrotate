@@ -1,0 +1,9 @@
+/var/log/atlas/http-error.log /var/log/atlas/php-error.log {
+ daily
+ rotate 7
+ missingok
+ notifempty
+ compress
+ delaycompress
+ copytruncate
+}

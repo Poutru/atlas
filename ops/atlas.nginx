@@ -1,0 +1,20 @@
+server {
+    listen 80;
+    server_name atlas.predhit.com;
+    root /opt/atlas/current/web/public;
+    index index.php;
+    client_max_body_size 20k;
+    access_log off;
+    error_log /var/log/atlas/http-error.log warn;
+    location /.well-known/acme-challenge/ { root /var/www/atlas-acme; }
+    location /assets/ { try_files $uri =404; expires 1h; add_header X-Content-Type-Options nosniff; }
+    location / { try_files /nonexistent-atlas-route /index.php$is_args$args; }
+    location = /index.php {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME /opt/atlas/current/web/public/index.php;
+        fastcgi_pass unix:/run/php/atlas.sock;
+        fastcgi_read_timeout 180s;
+    }
+    location ~ \.php$ { return 404; }
+    location ~ /\. { deny all; }
+}

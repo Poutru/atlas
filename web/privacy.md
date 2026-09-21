@@ -1,0 +1,11 @@
+# Atlas privacy profile — version 1
+
+The public Onym Discovery interface consists of static signed manifests and full catalog snapshots. It requires no account, cookie, identity key or stable client identifier. Search, filtering and comparison in the Atlas website run locally after downloading the full public list. We do not transmit queries or browsing choices to service operators. No analytics, external fonts, ad scripts or personalization are used.
+
+The website and API are hosted on the operator's Hetzner server in Finland. DNS is provided through Spaceweb. Infrastructure sees IP addresses, request paths and timestamps. Atlas's dedicated nginx access log is disabled; error logs may contain request metadata and rotate daily with seven rotations. PHP sessions are used only when requesting the submission/admin session endpoint, not for downloading signed files or reading the catalog. Session cookies are HttpOnly, Secure and SameSite=Strict in production.
+
+Submission and login abuse controls store an HMAC of the network IP plus a purpose-specific bucket, a counter and an expiry; no plaintext IP is stored in the application database. Expired rate-limit rows are removed by hourly maintenance after a one-day grace. No cross-seat behavioral profile is created. The owner login is separate from Onym identities; the application never requests a recovery phrase or identity private key.
+
+Submitted manifest URLs, signed bytes, catalog entries and editorial change history are public catalog data. The server retrieves manifests on submission, review and hourly checks; a destination sees the catalog server's request, not the visitor's device. Do not submit private manifests. Disabled records and prior snapshots are retained for integrity, review and suppression of resubmission. There is no claim of erasing signed public history.
+
+No viewer identity is sent to a destination by browsing Atlas. Following an explicit external link or connecting in a separate client contacts that service under its own policy. Corrections and privacy requests can be raised through https://github.com/Poutru/atlas/issues without posting sensitive information. GitHub applies its own privacy policy to that channel.

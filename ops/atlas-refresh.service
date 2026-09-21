@@ -1,0 +1,15 @@
+[Unit]
+Description=Revalidate Atlas service manifests and publish signed catalog
+After=network-online.target
+[Service]
+Type=oneshot
+User=atlas
+Group=atlas
+Environment=ATLAS_DATA=/var/lib/atlas
+ExecStart=/usr/bin/php /opt/atlas/current/web/bin/console.php refresh
+TimeoutStartSec=45min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/atlas

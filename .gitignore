@@ -1,0 +1,14 @@
+target/
+*.seed
+
+# Atlas runtime state and local access material
+web/var/
+*.sqlite*
+config.json
+initial-admin-password.txt
+*.pem
+*.key
+.env*
+!web/.env.example
+
+.local/
