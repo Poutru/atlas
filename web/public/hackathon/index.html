@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hackathon — что я сделал для Onym · Atlas</title>
+<meta name="description" content="Результаты хакатона SOBOR: каталог Atlas, Simple backup, Onym Web, API и провайдер имён BSN, Android PR. Демо, исходники и подробный сценарий проверки.">
+<link rel="canonical" href="https://atlas.predhit.com/hackathon/">
+<link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/hackathon.css?v=20260924-judge">
+<meta name="theme-color" content="#f6f7f9">
+</head>
+<body>
+<a class="skip" href="#content">К содержанию</a>
+<header class="site-header"><a class="brand" href="/"><img src="/assets/mark.svg" width="32" height="32" alt="">atlas <span>для Onym</span></a><nav aria-label="Главная навигация"><a href="/">Каталог</a><a href="https://onym.predhit.com/">Веб-клиент ↗</a><a href="/bsn-np/guide/">Статья про BSN</a><a href="https://github.com/Poutru">GitHub ↗</a></nav></header>
+<main id="content">
+<section class="hero">
+<div class="eyebrow"><span class="dot"></span> SOBOR · HACKATHON · 2026</div>
+<h1>Что я сделал<br><span>для Onym</span></h1>
+<p class="lead">Начал с каталога сервисов, а в процессе собрал ещё сервис бэкапа, браузерный клиент и связку, которая позволяет использовать в чатах имя из существующего Stellar-аккаунта. Затем разработал протокол аутентификации через Onym и второй веб-клиент, который использует его для настройки имени на сайте BSN.</p>
+<div class="byline"><span>Валерий Утросин</span><span>Результаты на 24 сентября 2026</span><a href="https://sobor.io/">Хакатон SOBOR ↗</a></div>
+<div class="entry-links"><a class="primary" href="#try">С чего начать проверку <span>↓</span></a><a href="#results">Все результаты</a><a href="#guide">Как работает имя из BSN</a></div>
+</section>
+<div class="layout">
+<aside><nav aria-label="Разделы страницы"><p class="eyebrow">НА ЭТОЙ СТРАНИЦЕ</p><a href="#try">Проверить за несколько минут</a><a href="#atlas">01 · Каталог Atlas</a><a href="#backup">02 · Simple backup</a><a href="#web">03 · Onym Web</a><a href="#api">04 · Протокол и API</a><a href="#bsn">05 · BSN naming provider</a><a href="#android">06 · Android PR</a><a href="#auth-protocol">07 · Протокол аутентификации</a><a href="#authentication">08 · Войти с Onym · рабочее демо</a><a href="#guide">Статья с примерами API</a><a href="#verification">Что проверено</a></nav></aside>
+<div class="story">
+<section id="try" class="start-panel"><p class="judge-label">ДЛЯ СУДЬИ</p><h2>С чего начать проверку</h2><p>Здесь собраны работающие демо и код, чтобы можно было пройти весь путь и посмотреть, что получилось. Ниже — порядок проверки основных результатов, включая протокол аутентификации и его работающую реализацию.</p><ol class="checklist"><li><a href="/">Откройте Atlas</a>, найдите сервис и посмотрите его карточку. В меню есть добавление своего сервиса по URL манифеста, а каталог можно подключить к совместимому клиенту Onym.</li><li><a href="https://onym.predhit.com/">Откройте Onym Web</a>, создайте тестовую идентичность или импортируйте свою и задайте пароль. В разделе «Моя идентичность» доступны публичный ключ, Stellar-адрес и работа с именем BSN.</li><li><a href="/bsn-np/manifest.json">Посмотрите манифест провайдера имён</a> и пройдите <a href="#guide">сценарий привязки ниже</a>. Для чтения публичного имени Stellar-кошелёк не нужен; для записи тега связи понадобится подпись владельца аккаунта.</li><li><a href="/onym-auth/">Прочитайте протокол аутентификации через Onym</a>. В нём описаны два способа входа — с сайта и из мессенджера — на основе OpenID Connect и OAuth 2.0, с подтверждением идентичности ключом Onym.</li><li><a href="https://onym.predhit.com/preview/">Откройте второй веб-клиент — Onym Web Preview</a> и проверьте реализацию протокола: выберите BSN среди сервисов Discovery, нажмите «Настроить на сайте», подтвердите вход и передачу публичного ключа. В <a href="/bsn-np/account">кабинете BSN</a> можно настроить имя или увидеть уже подключённое, затем вернуться в клиент и получить его через подписанный API. Подробный путь описан в <a href="#authentication">разделе об аутентификации</a>.</li></ol><p class="small">Страница Simple backup и Android PR доступны ниже. Новый сценарий входа и настройки имени описан в разделе <a href="#authentication">«Войти с Onym»</a>; там же есть ссылка на preview.</p></section>
+<section id="results" class="intro"><h2>Что получилось</h2><p>Мне было интересно собрать понятный пользовательский путь: человек находит инфраструктуру в каталоге, открывает клиент, подключает нужные сервисы и использует своё имя, которое уже есть в другой системе. Поэтому работы здесь связаны между собой, хотя каждую можно посмотреть отдельно.</p></section>
+<section id="atlas" class="project"><div class="section-top"><span class="number">01</span><span class="status live">Работает на сайте</span></div><h2>Atlas — каталог сервисов Onym</h2><p>Взял за основу референсный <a href="https://github.com/onymchat/onym-discovery">Onym Discovery</a> и добавил сайт, через который можно искать сервисы, смотреть карточки, сравнивать варианты и предлагать свои. Сохранил исходный механизм подписания манифеста и снимков каталога, чтобы Atlas оставался совместимым источником Discovery.</p><p>Новый сервис добавляется по HTTPS-ссылке на манифест. После технической проверки подписи, срока действия и основных полей запись автоматически публикуется. У владельца есть отдельная админка, где можно изменить описание карточки, отключить сервис или вернуть его в каталог. Подписанный документ самого оператора при этом сохраняется.</p><p>Каталог периодически проверяет записи и исключает недоступные или просроченные сервисы из подписанного снимка. Изменившиеся манифесты проходят через решение владельца. Для посетителя всё это выглядит как обычный каталог с поиском, фильтрами и кнопкой подключения к Onym.</p><div class="links"><a class="primary" href="/">Открыть Atlas ↗</a><a href="https://github.com/Poutru/atlas">Исходники</a><a href="/manifest.json">Манифест Discovery</a></div></section>
+<section id="backup" class="project"><div class="section-top"><span class="number">02</span><span class="status live">Демо развёрнуто</span></div><h2>Simple backup</h2><p>Поднял отдельного оператора резервных копий на основе <a href="https://github.com/onymchat/onym-backup">Onym Backup</a>. Он принимает зашифрованные архивы совместимого клиента, позволяет получить список копий, скачать архив, экспортировать данные и удалить свои записи. Доступ подтверждается ключом пользователя.</p><p>Адаптировал сервис для работы в подпапке домена, включая проверку подписанного пути запроса, добавил его собственный манифест и карточку в Atlas. Приложение шифрует данные до отправки, поэтому сервис хранит архив без ключа расшифровки.</p><div class="facts"><div><strong>5</strong><span>копий на пользователя</span></div><div><strong>256 МиБ</strong><span>на одну копию</span></div><div><strong>Бесплатно</strong><span>демонстрационный сервис</span></div></div><p class="small">Демо работает на одном сервере, без географического дублирования. Проверка серверного протокола выполнена; полное восстановление истории на телефоне отдельно не проверялось.</p><div class="links"><a class="primary" href="/simple-backup/">Открыть Simple backup ↗</a><a href="https://github.com/Poutru/atlas/tree/codex/production/services/simple-backup">Исходники</a><a href="/simple-backup/manifest.json">Манифест</a></div></section>
+<section id="web" class="project"><div class="section-top"><span class="number">03</span><span class="status live">Работает · alpha</span></div><h2>Onym в браузере</h2><p>Сделал веб-клиент в форке Android-проекта, чтобы пользоваться Onym и проверять интеграции без установки мобильного приложения. В нём можно создать или импортировать идентичность, открыть приглашение в чат и работать с сообщениями.</p><p>Ключи хранятся локально в браузере в хранилище, зашифрованном паролем. Для получения ключа из пароля используется Argon2id, для шифрования — AES-GCM. В клиент добавлены отображение публичного ключа и Stellar-адреса, настройка имени BSN и подготовка транзакции привязки.</p><p>Для меня этот клиент стал ещё и местом, где можно пройти весь сценарий внешнего имени: от существующего Stellar-аккаунта до проверенной записи, которую видят участники чата. Создание и администрирование групп, а также удаление участников с обновлением ключей пока реализованы не полностью.</p><div class="links"><a class="primary" href="https://onym.predhit.com/">Открыть Onym Web ↗</a><a href="https://github.com/Poutru/onym-web">Репозиторий</a><a href="https://github.com/Poutru/onym-web/tree/main/web/src">Код веб-клиента</a></div></section>
+<section id="api" class="project"><div class="section-top"><span class="number">04</span><span class="status">Спецификация опубликована</span></div><h2>Протокол и API для провайдера имён</h2><p>Описал конкретный HTTP API, через который клиент может запросить имя, получить подписанную запись, подтвердить её публикацию, найти имя по публичному ключу и затем отозвать своё согласие. За основу взял <a href="https://github.com/onymchat/onym-system/blob/4712694da80a9d2f82fff0fa73725af30260eb6b/association/Association-Naming.md">проект Association Naming в Onym</a> и зафиксировал формат запросов, подписей и ответов для нашей реализации.</p><p>Этот документ — опубликованный экспериментальный профиль <code>onym:naming-implementation:bsn-stellar-http-v1</code>. Его статус позволяет другим разработчикам воспроизвести интеграцию и обсудить API; утверждение в качестве общего стандарта Onym потребует согласования с исходным проектом.</p><div class="table-wrap"><table><caption>Основные обращения к API</caption><thead><tr><th>Запрос</th><th>Что происходит</th></tr></thead><tbody><tr><td><code>GET manifest.json</code></td><td>Клиент получает подписанный манифест, ключ провайдера и ссылку на политику.</td></tr><tr><td><code>POST v1/preview</code></td><td>Проверяется имя в Stellar и наличие связи с идентичностью Onym.</td></tr><tr><td><code>POST v1/request-issuance</code></td><td>По подписанному запросу выдаётся предложение записи имени.</td></tr><tr><td><code>POST v1/accept-record</code></td><td>Владелец подписывает принятие конкретной записи и разрешает публикацию.</td></tr><tr><td><code>POST v1/resolve-subject</code></td><td>Другой клиент получает записи для публичного ключа участника.</td></tr><tr><td><code>POST v1/disavow-record</code></td><td>Владелец отзывает принятие имени.</td></tr></tbody></table></div><p>В спецификации также описаны поиск по квалифицированному имени, продление записи и отзыв со стороны оператора. Подписи разделены по назначению, а клиент проверяет подпись провайдера, согласие владельца, связь с нужным ключом и срок действия ответа.</p><div class="links"><a class="primary" href="/bsn-np/protocol.md">Читать спецификацию API ↗</a><a href="/bsn-np/profile.json">Машиночитаемый профиль</a><a href="https://github.com/Poutru/onym-web/blob/main/web/naming-provider/protocol.md">Документ в GitHub</a></div></section>
+<section id="bsn" class="project"><div class="section-top"><span class="number">05</span><span class="status live">Провайдер развёрнут</span></div><h2>Имя из BSN — в чатах Onym</h2><p>Реализовал этот API как отдельный BSN naming provider. Источником имени служит тег <code>Name</code> существующего Stellar-аккаунта; если такого тега нет, проверяется <code>name</code>. Менять имя по-прежнему можно через кошелёк, который управляет этим аккаунтом.</p><p>Для привязки владелец добавляет в Stellar тег <code>OwnershipFull</code> или его свободный пронумерованный вариант со Stellar-адресом своей идентичности Onym. Затем клиент подписывает запрос своим ключом, провайдер проверяет обе стороны связи и выдаёт запись, которую пользователь явно принимает.</p><div class="flow" aria-label="Путь имени"><div><small>ИСТОЧНИК</small><strong>Stellar · Name</strong><span>Имя и тег связи</span></div><span class="arrow" aria-hidden="true">→</span><div><small>ПРОВЕРКА</small><strong>BSN provider</strong><span>Подписанная запись</span></div><span class="arrow" aria-hidden="true">→</span><div><small>ОТОБРАЖЕНИЕ</small><strong>Onym</strong><span>Имя участника чата</span></div></div><p>Веб-клиент готовит XDR-транзакцию добавления тега: находит свободный номер, показывает значение, комиссию, резерв и срок действия. Её можно скопировать, скачать или открыть через SEP-7, чтобы подписать и отправить своим Stellar-кошельком.</p><p>При показе имени клиент использует проверенный ключ участника из состава группы. Рядом остаётся источник имени, поскольку одинаковые имена могут принадлежать разным аккаунтам. Изменение имени или тега связи в Stellar делает старую запись недействительной при следующей проверке; опубликованное имя также можно отозвать из клиента.</p><div class="links"><a class="primary" href="/bsn-np/">Открыть BSN provider ↗</a><a href="https://github.com/Poutru/onym-web/tree/main/web/naming-provider">Исходники провайдера</a><a href="/bsn-np/guide/">Пошаговая статья</a></div></section>
+<section id="android" class="project"><div class="section-top"><span class="number">06</span><span class="status draft">Открыт Draft PR</span></div><h2>Поддержка в Android-клиенте</h2><p>Подготовил и отправил <a href="https://github.com/onymchat/onym-android/pull/263">PR #263 в исходный onymchat/onym-android</a>. Он добавляет работу с тем же провайдером в настройки активной идентичности: запрос имени, просмотр предложения, подтверждение публикации и отзыв.</p><p>Показ имён собеседников включается отдельно для каждой идентичности. В открытом групповом чате проверенные имена используются в подписях отправителей и ответах на сообщения. Когда запись истекает, отозвана или не проходит проверку, клиент возвращается к обычному имени участника. Интерфейс подготовлен на русском и английском.</p><p>Подписи создаются через существующий механизм хранилища Android, без передачи приватного ключа провайдеру. Запросы выполняются, пока чат открыт; срок актуальности подписанного ответа ограничен 60 секундами.</p><div class="note"><strong>Демонстрация на 24 сентября.</strong> Доступна демонстрационная Android-сборка с поддержкой BSN. Ниже — присланные примеры экрана настроек и отображения полученного имени. Это debug APK для знакомства с интеграцией; новый вход через сайт провайдера описан отдельно в разделе про веб-preview.</div>
+<h3>Как это выглядит в мобильном клиенте</h3><div class="android-gallery"><figure><a href="/assets/android-demo/bsn-settings.png" target="_blank" rel="noopener"><img src="/assets/android-demo/bsn-settings.png" alt="Настройки BSN: включение имён в чатах, инструкция по привязке и поле Stellar-адреса" loading="lazy" width="1080" height="2424"></a><figcaption>Включение имён BSN и запрос имени по Stellar-аккаунту. В поле на этом примере показан демонстрационный текст, его не нужно копировать как адрес.</figcaption></figure><figure><a href="/assets/android-demo/bsn-connected.jpg" target="_blank" rel="noopener"><img src="/assets/android-demo/bsn-connected.jpg" alt="Полученное имя Rinat с источником bsn.atlas.predhit.com в настройках клиента" loading="lazy" width="570" height="1280"></a><figcaption>Полученное имя Rinat, источник BSN и сокращённый адрес аккаунта. Здесь же можно проверить опубликованное имя и отозвать его.</figcaption></figure></div>
+<p><a class="primary" href="/assets/downloads/onym-bsn-demo-20260924.apk" download>Скачать демонстрационный клиент для Android · APK · 49.6 МиБ</a></p><p class="small">Скачайте APK на Android и откройте файл для установки. Если система попросит разрешение, разрешите установку из приложения, через которое открываете файл. Для знакомства со сборкой можно создать тестовую идентичность.</p><details><summary>Контрольная сумма APK · SHA-256</summary><p><code class="apk-checksum">e2f1294847b897a68d7ea6bbfba7ca0752924463b3ae0e0e4669178906a23022</code></p></details>
+<div class="links"><a class="primary" href="https://github.com/onymchat/onym-android/pull/263">Открыть Android PR #263 ↗</a><a href="https://github.com/Poutru/onym-web/blob/codex/bsn-naming/docs/BSN-NAMING.md">Инструкция для разработчиков</a></div></section>
+<section id="auth-protocol" class="project"><div class="section-top"><span class="number">07</span><span class="status">Проект спецификации опубликован</span></div><h2>Протокол аутентификации через Onym</h2><p>Разработал протокол, по которому сайт может подтвердить идентичность пользователя Onym и открыть ему личный кабинет. Описаны оба сценария: человек начинает вход на сайте или переходит к настройке сервиса из мессенджера. Основа — OpenID Connect и OAuth 2.0 с Authorization Code, PKCE и PAR; владение ключом Onym подтверждается отдельным подписанным запросом.</p><p>В протоколе зафиксированы согласие на передачу публичного ключа, данные о настройке и разрешениях в манифесте провайдера, а также возврат в клиент. После возврата клиент получает результат через проверяемый API и предлагает принять имя. Документ опубликован как экспериментальный проект спецификации; его реализация для BSN доступна в следующем пункте.</p><div class="links"><a class="primary" href="/onym-auth/">Читать протокол аутентификации ↗</a><a href="#authentication">Посмотреть реализацию</a></div></section>
+<section id="authentication" class="project"><div class="section-top"><span class="number">08</span><span class="status live">Работает в preview</span></div><h2>Войти с Onym — рабочее демо и второй веб-клиент</h2>
+<p>Разработал протокол аутентификации через Onym и сделал второй веб-клиент, Onym Web Preview, который использует этот протокол для работы с провайдером имён BSN. В нём можно выбрать провайдера из Discovery, подтвердить вход своей идентичностью, открыть кабинет BSN и после настройки получить имя в мессенджере. Основная версия клиента остаётся доступна по прежнему адресу.</p>
+<p>Когда начал подключать провайдеров имён, стало понятно, что каждому из них может понадобиться свой интерфейс. Для BSN надо указать Stellar-аккаунт и проверить теги, у другого провайдера могут быть свои условия. Поэтому сделал вход на сайт через идентичность Onym, чтобы провайдер мог узнать пользователя и дать ему настроить всё в своём кабинете, а мессенджер получил проверенное имя для отображения в чатах.</p>
+<p>Сервер входа развёрнут на Atlas, за основу взяты OpenID Connect и OAuth 2.0: Authorization Code, PKCE и PAR. Владение идентичностью Onym подтверждается подписью запроса в клиенте. Перед входом человек видит, какому сайту он передаёт публичный ключ и зачем он нужен. Сид-фраза и приватный ключ остаются в клиенте.</p>
+<p>Вход можно начать на сайте BSN или из настроек провайдера в Onym. В текущей реализации оба пути проходят через явное подтверждение в веб-клиенте, после которого открывается кабинет. Здесь уже работает конкретная интеграция с BSN; подключение произвольных сайтов и остальные расширения описаны в проекте протокола и требуют дальнейшей реализации.</p>
+<h3>Как попробовать</h3><ol class="checklist">
+<li>Откройте <a href="https://onym.predhit.com/preview/">Onym Web Preview</a>, создайте тестовую идентичность или импортируйте существующую и задайте пароль. Preview хранит данные отдельно от основной версии.</li>
+<li>В настройках откройте сервисы из Discovery, выберите провайдера имён BSN и нажмите «Настроить на сайте». Можно начать и с <a href="/bsn-np/account">кабинета BSN</a>, который предложит войти через Onym.</li>
+<li>В клиенте проверьте сайт и выбранную идентичность, подтвердите вход и передачу публичного ключа, затем продолжите переход в кабинет.</li>
+<li>При первой настройке укажите Stellar-адрес. Провайдер проверит имя и тег связи; если связи ещё нет, подготовит транзакцию, которую можно подписать и отправить своим Stellar-кошельком.</li>
+<li>Вернитесь в Onym. Клиент запросит состояние настройки через подписанный API и предложит принять имя. После принятия оно используется для вашего профиля и отображения в совместимых чатах; у собеседника тоже должна быть включена поддержка этих имён.</li>
+</ol>
+<h3>Если имя уже подключено</h3>
+<p>Кабинет находит ранее принятое имя, в том числе если оно было настроено через старый встроенный экран. После входа видны само имя, связанный Stellar-адрес, теги имени и связи, идентичность Onym и срок действия записи. Пока привязка действует, поле для другого Stellar-адреса не показывается, а сервер отклоняет попытку заменить адрес через форму.</p>
+<p>В preview уже принятое действующее имя подгружается и после импорта той же сид-фразы. Кнопка «Проверить имя» сначала ищет такую запись и проверяет подписи; повторно принимать её не требуется. Если принятой записи нет, клиент проверяет настройки кабинета и предлагает принять новое имя, когда связь готова. Изменение самого имени выполняется владельцем в Stellar, после чего обновлённую запись нужно снова принять в Onym.</p>
+<h3>Что изменилось в веб-клиенте</h3>
+<p>Добавил раздел выбора сервисов из подключённого Discovery: реле сообщений, реле контрактов, резервного копирования и провайдера имён. Для BSN настройки открываются на сайте по данным манифеста. Возвратная ссылка открывает клиент, а результат он получает отдельно через API с проверкой подписей. Встроенный экран BSN в preview убран, в основной версии он сохранён.</p>
+<p>Основной клиент продолжает работать по прежнему адресу. Новые возможности опубликованы отдельно в preview; актуальные изменения этой экспериментальной версии пока не загружены в GitHub.</p>
+<p class="small">Проверены вход и согласие пользователя, защита от повторного использования подтверждения, получение уже принятого имени без настроек нового кабинета и запрет замены связанного адреса. Отдельные тесты проверяют восстановление имени после импорта идентичности и сохранение явного отключения имён. Рабочий сценарий также проверен пользователем.</p>
+<div class="links"><a class="primary" href="https://onym.predhit.com/preview/">Открыть Onym Web Preview ↗</a><a href="/bsn-np/account">Кабинет BSN</a><a href="/onym-auth/">Протокол аутентификации</a><a href="/bsn-np/guide/">Привязка имени и примеры API</a></div></section>
+<section id="guide" class="guide-section"><p class="eyebrow">РАЗОБРАТЬСЯ ПОДРОБНЕЕ</p><h2>Как связать имя из BSN с Onym</h2><p>В статье я разбираю этот путь на примере своего Stellar-аккаунта: где хранится имя, как получается адрес идентичности Onym, какую транзакцию нужно отправить, что подписывает клиент и как другой участник чата проверяет результат. Внутри есть команды curl и примеры TypeScript для API.</p><p><a href="/bsn-np/guide/">Открыть статью отдельной страницей ↗</a></p><details><summary>Прочитать полную статью здесь <span aria-hidden="true">＋</span></summary><article class="embedded-guide">
+
+        <p>
+          У меня есть Stellar-аккаунт, в котором уже записано имя в BSN. Хочется
+          использовать это же имя в Onym, чтобы оно появлялось в моём профиле и
+          рядом с сообщениями в чатах. Соответственно, нужен сервис, который
+          прочитает имя, проверит, что я действительно связываю этот аккаунт со
+          своей идентичностью Onym, и даст другим клиентам возможность проверить
+          результат.
+        </p>
+        <p>
+          Для этого сделан <a href="/bsn-np/">BSN Naming Provider</a>, а в
+          <a href="https://onym.predhit.com/">веб-версии Onym</a> появилась его
+          поддержка. Ниже разберём весь процесс на моём Stellar-адресе: сначала
+          то, что делает пользователь, а затем запросы, которые при этом
+          выполняет клиент.
+        </p>
+        <nav aria-label="Содержание">
+          <strong>Что разберём</strong>
+          <ol>
+            <li><a href="#guide-step-1">Откуда берётся имя</a></li>
+            <li><a href="#guide-step-2">Как связать два аккаунта</a></li>
+            <li>
+              <a href="#guide-step-3">Что показывает предварительная проверка</a>
+            </li>
+            <li><a href="#guide-step-4">Как получить подписанную запись</a></li>
+            <li><a href="#guide-step-5">Как подтвердить имя</a></li>
+            <li><a href="#guide-step-6">Как показать его в чате</a></li>
+            <li><a href="#guide-step-7">Что происходит при изменении имени</a></li>
+          </ol>
+        </nav>
+        <h2 id="guide-step-1">1. Откуда берётся имя</h2>
+        <p>Возьмём мой адрес в основной сети Stellar:</p>
+        <pre><code class="language-text">GCPJUXPETZEIJNEAAEO2LGZIA6IQNNWGOHPNP4ZQECDS6IKKIGJO5LFV</code></pre>
+        <p>
+          В его данных есть тег <code>Name</code> со значением
+          <strong>Valerij Utrosin</strong>. Именно эту строку мы и будем
+          использовать для отображения. Увидеть её можно через Horizon,
+          публичный API Stellar:
+        </p>
+        <pre><code class="language-bash">ACCOUNT=&#x27;GCPJUXPETZEIJNEAAEO2LGZIA6IQNNWGOHPNP4ZQECDS6IKKIGJO5LFV&#x27;
+curl -fsS &quot;https://horizon.stellar.org/accounts/$ACCOUNT&quot; \
+  | jq -r &#x27;.data.Name | @base64d&#x27;</code></pre>
+        <p>
+          В BSN имена хранятся в data entries аккаунта, а Horizon возвращает их
+          значения в Base64, поэтому в примере есть декодирование. Провайдер
+          сначала ищет <code>Name</code>; если такого тега нет, проверяет
+          вариант <code>name</code> с маленькой буквы. Имя читается из основной
+          сети Stellar, даже когда сам чат Onym работает с контрактом в тестовой
+          сети.
+        </p>
+        <p>
+          Здесь я использую своё имя как пример. Если повторяете процесс для
+          себя, подставьте адрес аккаунта, которым управляете, и проверьте его
+          тег <code>Name</code>.
+        </p>
+        <h2 id="guide-step-2">2. Как связать Stellar-аккаунт с идентичностью Onym</h2>
+        <p>
+          У идентичности Onym есть публичный ключ Ed25519, которым клиент
+          подписывает сообщения и запросы. Из этого ключа получается
+          Stellar-адрес, начинающийся с <code>G</code>. Его можно посмотреть в
+          разделе «Моя идентичность». Именно этот адрес надо указать в BSN как
+          значение тега <code>OwnershipFull</code> или его свободного
+          пронумерованного варианта.
+        </p>
+        <p>
+          Получается следующая связка: в моём существующем Stellar-аккаунте
+          записано, какой идентичности Onym разрешено использовать его имя, а
+          клиент Onym подтверждает владение своим ключом подписью запроса. Для
+          этой проверки не требуется заранее создавать или пополнять выведенный
+          из ключа Onym Stellar-аккаунт, поскольку он используется как
+          представление публичного ключа.
+        </p>
+        <p>
+          В веб-клиенте это делается через «Моя идентичность → Имя из BSN».
+          Вставляете свой Stellar-адрес и нажимаете
+          <strong>«Создать транзакцию привязки»</strong>. Клиент заново
+          загружает данные аккаунта, находит свободный тег и собирает готовую
+          XDR-транзакцию. Когда мы проверяли мой адрес, первые три тега были
+          заняты, поэтому выбирался <code>OwnershipFull3</code>. При следующем
+          обращении свободный номер может оказаться другим.
+        </p>
+        <p>
+          В транзакции одна операция <code>ManageData</code>, которая добавляет
+          выбранный тег со Stellar-адресом вашей идентичности Onym. На экране
+          видны это значение, комиссия, дополнительный резерв под запись и
+          время, до которого транзакция действует. Можно скопировать XDR,
+          скачать файл или открыть ссылку в кошельке с поддержкой SEP-7, после
+          чего подписать и отправить транзакцию своим Stellar-кошельком.
+        </p>
+        <p>
+          Для разработчика эта же подготовка выглядит так. Дальнейшие
+          TypeScript-примеры рассчитаны на код внутри
+          <code>web/src</code> нашего клиента, где переменная
+          <code>client</code> — уже разблокированный экземпляр
+          <code>Client</code>. Используемые функции есть в
+          <a href="https://github.com/Poutru/onym-web/tree/main/web/src"
+            >репозитории</a
+          >; запускать эти фрагменты в консоли браузера пользователю не
+          требуется.
+        </p>
+        <pre><code class="language-javascript">import { prepareBindingTransaction } from &quot;./stellarBinding&quot;;
+
+const stellarAccount =
+  &quot;GCPJUXPETZEIJNEAAEO2LGZIA6IQNNWGOHPNP4ZQECDS6IKKIGJO5LFV&quot;;
+
+const transaction = await prepareBindingTransaction(
+  stellarAccount,
+  client.identity.stellarAccount,
+);
+
+// Показываем пользователю и передаём в его Stellar-кошелёк.
+console.log(transaction.tag);   // Например, OwnershipFull3
+console.log(transaction.xdr);   // Неподписанная транзакция
+console.log(transaction.uri);   // Ссылка web+stellar:tx?...</code></pre>
+        <p>
+          XDR собирается в браузере с помощью официального Stellar SDK. Срок её
+          действия — 15 минут. Если за это время с того же аккаунта отправили
+          другую транзакцию, надо нажать «Сформировать заново», чтобы получить
+          актуальный sequence number. После успешной отправки возвращаемся в
+          Onym и нажимаем <strong>«Я отправил — проверить связь»</strong>.
+        </p>
+        <h2 id="guide-step-3">3. Что показывает предварительная проверка</h2>
+        <p>
+          У провайдера есть метод <code>preview</code>, который позволяет узнать
+          найденное имя и проверить, есть ли нужный тег связи. Для него
+          достаточно публичных данных. В поле <code>subject</code> передаётся
+          строка <code>onym:key:</code> и Ed25519-ключ Onym в виде 64
+          шестнадцатеричных символов нижнего регистра. В интерфейсе нужный ключ
+          подписан «Ed25519 — подпись».
+        </p>
+        <pre><code class="language-bash">BASE=&#x27;https://atlas.predhit.com/bsn-np&#x27;
+ACCOUNT=&#x27;GCPJUXPETZEIJNEAAEO2LGZIA6IQNNWGOHPNP4ZQECDS6IKKIGJO5LFV&#x27;
+# Подставьте свой публичный ключ из «Ed25519 — подпись».
+PUBKEY=&#x27;ВАШ_ED25519_КЛЮЧ_64_HEX_СИМВОЛА&#x27;
+SUBJECT=&quot;onym:key:$PUBKEY&quot;
+
+jq -n --arg account &quot;$ACCOUNT&quot; --arg subject &quot;$SUBJECT&quot; \
+  &#x27;{stellarAccount: $account, subject: $subject}&#x27; \
+  | curl -fsS &quot;$BASE/v1/preview&quot; \
+      -H &#x27;Content-Type: application/json&#x27; --data-binary @-</code></pre>
+        <p>
+          Когда связи ещё нет, ответ будет примерно таким. Значение
+          <code>value</code> здесь сокращено для чтения; настоящий API
+          возвращает полный Stellar-адрес, который требуется записать в тег.
+        </p>
+        <pre><code class="language-json">{
+  &quot;eligible&quot;: false,
+  &quot;tag&quot;: &quot;OwnershipFull&quot;,
+  &quot;value&quot;: &quot;G…адрес вашей идентичности Onym…&quot;,
+  &quot;name&quot;: &quot;Valerij Utrosin&quot;
+}</code></pre>
+        <p>
+          После появления нужного тега <code>eligible</code> станет
+          <code>true</code>, а в ответе будут <code>displayName</code>,
+          <code>nameTag</code>, <code>bindingTag</code> и
+          <code>onymAccount</code>. На этом этапе пользователь видит найденное
+          имя и может перейти к его получению. Для отображения проверенного
+          имени в чатах дальше понадобятся подписанная запись провайдера и
+          подтверждение владельца.
+        </p>
+        <h2 id="guide-step-4">4. Как получить подписанную запись имени</h2>
+        <p>
+          Сначала клиент читает манифест провайдера, где опубликованы его ключ,
+          пространство имён, профиль и хеш политики выдачи. Посмотреть документы
+          можно обычными GET-запросами:
+        </p>
+        <pre><code class="language-bash">curl -fsS &quot;$BASE/manifest.json&quot; | jq
+curl -fsS &quot;$BASE/profile.json&quot; | jq
+curl -fsS &quot;$BASE/policy.json&quot; | jq</code></pre>
+        <p>
+          В нашей веб-версии публичный ключ этого провайдера закреплён в коде.
+          Функция <code>namingManifest()</code> проверяет ключ и подпись
+          манифеста, поэтому при неожиданной замене ключа проверка остановится.
+          Конкретный BSN-профиль основан на
+          <a
+            href="https://github.com/onymchat/onym-system/blob/4712694da80a9d2f82fff0fa73725af30260eb6b/association/Association-Naming.md"
+            >проекте Association Naming</a
+          >
+          Onym; его HTTP-методы и правила описаны в
+          <a href="/bsn-np/protocol.md">нашей спецификации</a>.
+        </p>
+        <p>
+          Затем клиент вызывает <code>request-issuance</code>. Запрос
+          подписывается ключом текущей идентичности Onym и включает адрес
+          Stellar-аккаунта, время создания, срок действия и случайный
+          <code>nonce</code>, чтобы один и тот же подписанный запрос нельзя было
+          выполнить повторно.
+        </p>
+        <pre><code class="language-javascript">import { hex } from &quot;./bytes&quot;;
+import { limitedJson } from &quot;./transport&quot;;
+import {
+  NAMING_URL, namingManifest, requestProof, verifyResolution,
+} from &quot;./naming&quot;;
+
+const subject = &quot;onym:key:&quot; + hex(client.identity.signingPublic);
+const manifest = await namingManifest();
+
+const request = requestProof(
+  &quot;request-issuance&quot;,
+  { stellarAccount },
+  client.identity,
+);
+
+const rawOffer = await limitedJson(
+  NAMING_URL + &quot;v1/request-issuance&quot;,
+  {
+    method: &quot;POST&quot;,
+    headers: { &quot;Content-Type&quot;: &quot;application/json&quot; },
+    body: JSON.stringify(request),
+  },
+);
+
+const offer = verifyResolution(rawOffer, subject, manifest.policy);
+const row = offer.records[0];
+if (!row || row.status !== &quot;unaccepted&quot; ||
+    row.record.stellarAccount !== stellarAccount ||
+    Date.parse(row.record.expiresAt) &lt;= Date.now()) {
+  throw new Error(&quot;Предложение имени не прошло проверку&quot;);
+}
+const record = row.record;
+// Показываем record.displayName и источник пользователю.</code></pre>
+        <p>
+          Провайдер проверит подпись, прочитает Stellar и убедится, что тег
+          указывает на ключ подписавшего запрос. В результате появится
+          <code>AssociationRecord</code> со статусом <code>unaccepted</code>, то
+          есть предложение имени, ожидающее подтверждения. В записи будут
+          субъект, имя для отображения, Stellar-аккаунт, номер версии, срок
+          действия и подпись провайдера.
+        </p>
+        <p>
+          Есть деталь, которую важно учесть при интеграции: строка «Valerij
+          Utrosin» находится в <code>record.displayName</code>. Поле
+          <code>record.name</code> содержит полный Stellar-адрес, который
+          используется как уникальная часть имени внутри провайдера. Поэтому
+          одинаковые человеческие имена спокойно существуют у разных аккаунтов,
+          а клиент может показать, к какому аккаунту относится каждое из них.
+        </p>
+        <p>
+          Для собственного клиента подписи собираются по следующему правилу:
+          ключи JSON-объектов рекурсивно сортируются, JSON записывается
+          компактно в UTF-8, поле <code>signature</code> исключается из
+          подписываемого объекта. Перед ним добавляется строка
+          <code>onym-bsn-np-v1:&lt;kind&gt;</code> и один перевод строки LF. Для
+          запроса <code>kind</code> равен <code>request</code>, для
+          подтверждения — <code>acceptance</code>. Алгоритм — Ed25519, результат
+          передаётся в Base64. Хеш записи считается по полному каноническому
+          объекту, включая подпись провайдера, и имеет вид
+          <code>sha256:&lt;hex&gt;</code>.
+        </p>
+        <h2 id="guide-step-5">5. Как пользователь подтверждает имя</h2>
+        <p>
+          Теперь пользователю показывается конкретное имя и предлагается его
+          принять. Кнопка «Принять имя и опубликовать связь» создаёт
+          <code>SubjectAcceptance</code>, в котором подписывается хеш именно
+          этой записи. Так подтверждение привязано и к выбранному имени, и к
+          сроку его действия, и к провайдеру, который его выдал.
+        </p>
+        <p>
+          Ниже пример того, как формируется второй запрос. Его выполняет
+          обработчик явного подтверждения пользователя; переменные
+          <code>record</code>, <code>subject</code> и
+          <code>manifest</code> получены на предыдущем шаге.
+        </p>
+        <pre><code class="language-javascript">import { ed25519 } from &quot;@noble/curves/ed25519.js&quot;;
+import { b64, utf8 } from &quot;./bytes&quot;;
+import { canonical, recordDigest } from &quot;./naming&quot;;
+
+const acceptanceBody = {
+  acceptanceVersion: 1,
+  record: recordDigest(record),
+  subject,
+  publish: true,
+  acceptedAt: new Date().toISOString(),
+  expiresAt: record.expiresAt,
+};
+const acceptance = {
+  ...acceptanceBody,
+  signature: b64(ed25519.sign(
+    utf8(&quot;onym-bsn-np-v1:acceptance\n&quot; + canonical(acceptanceBody)),
+    client.identity.signingSecret,
+  )),
+};
+
+const rawAccepted = await limitedJson(NAMING_URL + &quot;v1/accept-record&quot;, {
+  method: &quot;POST&quot;,
+  headers: { &quot;Content-Type&quot;: &quot;application/json&quot; },
+  body: JSON.stringify(requestProof(&quot;accept-record&quot;, {
+    record: recordDigest(record),
+    acceptance,
+  }, client.identity)),
+});
+
+const accepted = verifyResolution(rawAccepted, subject, manifest.policy);
+const active = accepted.records.find(r =&gt;
+  r.status === &quot;active&quot; &amp;&amp; recordDigest(r.record) === recordDigest(record)
+);
+if (!active) throw new Error(&quot;Имя не активировано&quot;);</code></pre>
+        <p>
+          Поле <code>publish: true</code> разрешает провайдеру отдавать эту
+          связь по публичному запросу. После подтверждения другой клиент сможет
+          узнать, какое имя владелец принял для своего ключа Onym. Само
+          предложение, которое ещё не принято, в такой выдаче не появляется. API
+          также допускает <code>publish: false</code>, но текущий интерфейс
+          подключения рассчитан на публичное разрешение имени в чатах.
+        </p>
+        <p>
+          В нашем клиенте весь этот шаг, вместе с сохранением настройки в
+          зашифрованном хранилище, уже собран в
+          <code>await client.useName(record)</code>. В интеграции достаточно
+          вызвать его после согласия пользователя; длинный пример выше
+          показывает содержимое обмена с API.
+        </p>
+        <h2 id="guide-step-6">6. Как имя появляется рядом с сообщением</h2>
+        <p>
+          Допустим, другой участник открыл чат со мной и включил показ
+          проверенных имён BSN. В подтверждённом составе группы у него уже есть
+          мой ключ подписи <code>sending_pubkey</code>, связанный с BLS-ключом
+          участника. По нему клиент строит <code>subject</code> и обращается к
+          провайдеру через <code>resolve-subject</code>. Для чтения публично
+          принятого имени подпись запроса не требуется:
+        </p>
+        <pre><code class="language-bash">jq -n --arg subject &quot;$SUBJECT&quot; &#x27;{subject: $subject}&#x27; \
+  | curl -fsS &quot;$BASE/v1/resolve-subject&quot; \
+      -H &#x27;Content-Type: application/json&#x27; --data-binary @-</code></pre>
+        <p>
+          Ответ содержит массив <code>records</code>, где у каждой строки есть
+          запись провайдера, подтверждение владельца и текущий статус. Весь
+          ответ тоже подписан и содержит время проверки. Получив его, клиент
+          проверяет подписи провайдера и владельца, совпадение субъекта, хеш
+          принятой записи, сроки действия и статус <code>active</code>.
+        </p>
+        <p>
+          В коде это можно собрать так. Переменная <code>group</code> здесь —
+          уже проверенная группа, а <code>message</code> — сообщение, для
+          которого клиент уже проверил отправителя.
+        </p>
+        <pre><code class="language-javascript">import { unb64 } from &quot;./bytes&quot;;
+import { resolveName, NAMING_NS } from &quot;./naming&quot;;
+
+const member = group.member_profiles[message.sender_bls_pubkey_hex];
+if (!member) throw new Error(&quot;Нет подтверждённого профиля отправителя&quot;);
+
+const senderSubject = &quot;onym:key:&quot; + hex(unb64(member.sending_pubkey));
+const currentManifest = await namingManifest();
+const result = await resolveName(senderSubject, currentManifest.policy);
+// resolveName уже проверяет подписи, принятие записи и свежесть ответа.
+const named = result.records
+  .filter(row =&gt; row.status === &quot;active&quot;)
+  .sort((a, b) =&gt; b.record.sequence - a.record.sequence)[0];
+
+const displayName = named?.record.displayName ?? member.alias;
+const source = named
+  ? &quot;@&quot; + NAMING_NS + &quot; · &quot; + named.record.stellarAccount
+  : &quot;Локальное имя&quot;;
+// Передаём displayName и source в текстовые элементы интерфейса.</code></pre>
+        <p>
+          В результате в чате видно «Valerij Utrosin», а рядом — источник
+          <code>@bsn.atlas.predhit.com</code> и сокращённый Stellar-адрес. Это
+          помогает различать людей с одинаковыми именами. При отсутствии
+          действующего подтверждения клиент возвращается к локальному имени
+          участника.
+        </p>
+        <p>
+          Провайдер при такой проверке получает публичные ключи, которые у него
+          спрашивают, поэтому показ BSN-имён включается отдельно. Текущая
+          веб-версия проверяет свою идентичность и до 19 других участников
+          открытой группы, обновляя результат примерно раз в 30 секунд.
+          Подписанный ответ пригоден для текущего отображения не дольше 60
+          секунд, и при недоступности проверки клиент убирает подтверждённое
+          имя.
+        </p>
+        <p>
+          Если известен сам Stellar-аккаунт, доступен и прямой запрос
+          <code>resolve-name</code>. В нём передаётся полное квалифицированное
+          имя аккаунта:
+        </p>
+        <pre><code class="language-bash">jq -n --arg name &quot;$ACCOUNT@bsn.atlas.predhit.com&quot; &#x27;{name: $name}&#x27; \
+  | curl -fsS &quot;$BASE/v1/resolve-name&quot; \
+      -H &#x27;Content-Type: application/json&#x27; --data-binary @-</code></pre>
+        <p>
+          Этот метод удобен для просмотра конкретной записи по аккаунту. Для
+          отображения отправителя в нашей веб-версии используется
+          <code>resolve-subject</code>, потому что ключ отправителя уже известен
+          из группы. Приведённый выше <code>verifyResolution</code> тоже
+          рассчитан на запрос по субъекту; интеграция прямого поиска по
+          квалифицированному имени требует соответствующей проверки поля
+          <code>query</code>.
+        </p>
+        <h2 id="guide-step-7">
+          7. Что происходит, если изменить имя или отключить связь
+        </h2>
+        <p>
+          Имя меняется в теге <code>Name</code> Stellar-аккаунта. При следующей
+          проверке провайдер увидит, что данные расходятся с прежней записью, и
+          та перестанет подтверждаться. Пользователь снова запрашивает
+          предложение и принимает новое имя. Такой же новый цикл потребуется
+          после истечения семидневного срока записи; для получения следующего
+          предложения у API есть метод <code>renew-record</code> с теми же
+          полями запроса, что у <code>request-issuance</code>.
+        </p>
+        <p>
+          Если надо отказаться от принятого имени, в интерфейсе есть «Отозвать
+          привязку имени». Клиент подписывает <code>Disavowal</code> и
+          отправляет его через <code>disavow-record</code>. Для уже принятой
+          записи вызов готовой функции выглядит так:
+        </p>
+        <pre><code class="language-javascript">import { disavowName } from &quot;./naming&quot;;
+
+// Выполняется после выбора пользователем «Отозвать привязку имени».
+await disavowName(recordDigest(record), client.identity);
+// Метод отправит подписанные disavowal и запрос в v1/disavow-record.</code></pre>
+        <p>
+          Отозванная запись получает статус <code>disavowed</code> и больше не
+          используется как действующее имя. Опубликованная история связи может
+          сохраняться у провайдера и тех, кто её уже прочитал. Тег в Stellar при
+          этом остаётся на месте, его удаление или изменение выполняется
+          отдельной транзакцией владельца аккаунта.
+        </p>
+        <p>
+          Снять флажок «Показывать проверенные имена BSN» можно и без отзыва:
+          тогда этот клиент прекращает запросы и показывает локальные имена, а
+          опубликованная связь остаётся доступной другим. При удалении тега
+          связи из Stellar провайдер также перестаёт подтверждать имя. Если
+          исходные данные впоследствии восстановлены и запись ещё действует,
+          проверка может снова пройти; явный отзыв конкретной записи
+          окончателен.
+        </p>
+        <h2 id="practice">Где это уже работает</h2>
+        <p>
+          Подключение и проверка реализованы в
+          <a href="https://onym.predhit.com/">Onym Web</a>. Чтобы собеседник
+          увидел имя как проверенное, его клиенту нужна поддержка этого
+          BSN-профиля и включённое отображение имён. В мобильных клиентах такая
+          проверка сама по себе от подключения провайдера не появится, для неё
+          потребуется соответствующая доработка.
+        </p>
+        <p>
+          Если будете подключать другой веб-клиент, учтите ещё один момент:
+          сейчас CORS разрешён для <code>onym.predhit.com</code> и
+          <code>atlas.predhit.com</code>. Запросы из терминала работают без
+          <code>Origin</code>; для браузера на другом домене потребуется
+          добавить его в конфигурацию провайдера. Примеры выше используют
+          действующие методы и поля нашей реализации.
+        </p>
+        <p>
+          Исходники
+          <a
+            href="https://github.com/Poutru/onym-web/tree/main/web/naming-provider"
+            >провайдера</a
+          >
+          и
+          <a href="https://github.com/Poutru/onym-web/tree/main/web/src"
+            >веб-клиента</a
+          >
+          опубликованы в GitHub. Там же можно посмотреть проверку подписей и
+          подготовку XDR, а в
+          <a href="/bsn-np/protocol.md">описании HTTP-профиля</a> собраны форматы
+          объектов, ограничения и правила актуальности. О том, как устроены сами
+          BSN-теги, подробнее написано в
+          <a href="https://monte.wiki/ru/BSN">описании BSN</a>.
+        </p>
+      
+</article></details></section>
+<section id="verification" class="verification"><h2>Что можно проверить в коде</h2><p>Для основных сервисов опубликованы исходники и работающие адреса; статус новых изменений preview указан выше. В процессе разработки проверялись подписи документов, доступ к резервным копиям, совместимость ответов Node-провайдера с клиентом, обработка приглашений и создание XDR-транзакции. Проверка транзакции выполнялась без её подписи и отправки от имени владельца аккаунта.</p><ul><li><a href="https://github.com/Poutru/atlas/tree/codex/production/web/tests">Atlas:</a> тесты протокола и интеграции каталога.</li><li><a href="https://github.com/Poutru/atlas/tree/codex/production/services/simple-backup/ops">Simple backup:</a> сценарий проверки публичного API с временным тестовым владельцем и удалением только его копии.</li><li><a href="https://github.com/Poutru/onym-web/tree/main/web/tests">Onym Web и BSN:</a> тесты идентичности, приглашений, протокола имён и подготовки транзакции.</li><li><a href="https://github.com/Poutru/onym-web/tree/codex/bsn-naming/app/src/test/kotlin/app/onym/android/naming">Android:</a> проверка подписей и тестовых ответов провайдера, включая неверный ключ, просроченную запись и отсутствие согласия владельца.</li></ul><p>Основой работы стали открытые проекты <a href="https://github.com/onymchat">Onym</a>, архитектура <a href="https://onym.foundation/">Onym Foundation</a> и <a href="https://monte.wiki/ru/BSN">BSN</a>. Мой вклад — каталог с пользовательским интерфейсом и управлением, развёртывание и адаптация оператора бэкапа, веб-клиент, конкретный API и реализация BSN naming provider, а также Android-интеграция.</p></section>
+</div></div>
+</main><footer><a class="brand" href="/">atlas</a><p>Валерий Утросин · SOBOR Hackathon · сентябрь 2026</p><a href="https://github.com/Poutru">Исходники в GitHub ↗</a><a href="#content">Наверх ↑</a></footer>
+</body></html>

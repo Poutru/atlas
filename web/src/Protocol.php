@@ -69,13 +69,26 @@ function verifyService(string $raw):array {
     if(!preg_match('/^onym:component:[a-z0-9-]{1,64}$/D',$v->componentId))throw new Problem('Некорректный componentId.');
     if(!preg_match('/^onym:key:([a-f0-9]{64})$/D',$v->operator,$key))throw new Problem('Некорректный ключ оператора.');
     if(!preg_match('/^[a-z0-9.-]{1,64}$/D',$v->seat))throw new Problem('Некорректная роль.');
+    // The BSN registry profile signs domain-separated JSON, unlike generic service manifests.
+    // Select exactly one signature scheme from the declared profile; never try a fallback.
+    $bsn=($v->implementationProfileId??null)==='onym:naming-implementation:bsn-stellar-http-v1';
+    if($bsn){
+        if($v->seat!=='naming.association' || ($v->namingProfileId??null)!=='onym:naming-profile:qualified-association-v1'
+            || !is_object($v->trustRoot??null) || ($v->trustRoot->algorithm??null)!=='Ed25519'
+            || ($v->trustRoot->publicKey??null)!==$key[1]
+            || !is_string($v->registry??null) || !preg_match('/^onym:registry:[a-z0-9-]{1,64}$/D',$v->registry)
+            || !is_string($v->namespace??null) || !preg_match('/^(?:[a-z0-9-]+\.)+[a-z0-9-]+$/D',$v->namespace)
+            || !is_string($v->policy??null) || !preg_match('/^sha256:[a-f0-9]{64}$/D',$v->policy))
+            throw new Problem('Некорректный манифест профиля BSN naming provider.');
+    }
     $sig=base64_decode($v->signature,true);$unsigned=clone $v;unset($unsigned->signature);
-    if($sig===false||strlen($sig)!==64||!sodium_crypto_sign_verify_detached($sig,canonical($unsigned),hex2bin($key[1])))throw new Problem('Подпись манифеста не прошла проверку.');
+    $message=($bsn?"onym-bsn-np-v1:manifest\n":'').canonical($unsigned);
+    if($sig===false||strlen($sig)!==64||!sodium_crypto_sign_verify_detached($sig,$message,hex2bin($key[1])))throw new Problem('Подпись манифеста не прошла проверку.');
     if(isset($v->validUntil)){
         if(!is_string($v->validUntil)||!preg_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D',$v->validUntil)||strtotime($v->validUntil)===false||strtotime($v->validUntil)<=time())throw new Problem('Манифест просрочен или срок записан некорректно.');
-    }elseif($v->seat!=='storage.backup')throw new Problem('Не указан срок validUntil.');
+    }elseif($v->seat!=='storage.backup'&&!$bsn)throw new Problem('Не указан срок validUntil.');
     $profiles=[];
-    foreach(['implementationProfileId','moderationProfileId','backupProfileId'] as $f)if(isset($v->$f)&&is_string($v->$f))$profiles[]=$v->$f;
+    foreach(['implementationProfileId','moderationProfileId','backupProfileId','namingProfileId'] as $f)if(isset($v->$f)&&is_string($v->$f))$profiles[]=$v->$f;
     foreach(['profiles','supportedProfiles','implementationProfiles'] as $f)if(isset($v->$f)&&is_array($v->$f))foreach($v->$f as $p){if(is_string($p))$profiles[]=$p;elseif(is_object($p)&&isset($p->implementationProfileId))$profiles[]=$p->implementationProfileId;}
     foreach($profiles as $profile)if(!is_string($profile)||strlen($profile)>200)throw new Problem('Некорректный профиль.');
     if(count($profiles)>32)throw new Problem('Слишком много профилей.');

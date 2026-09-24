@@ -12,3 +12,24 @@ $kp=sodium_crypto_sign_seed_keypair(str_repeat('a',32));$sk=sodium_crypto_sign_s
 $v->signature=base64_encode(sodium_crypto_sign_detached(Atlas\canonical($v),$sk));$raw=Atlas\canonical($v);check(Atlas\verifyService($raw)['componentId']===$v->componentId,'valid Ed25519 manifest');
 $v->componentId='onym:component:tampered';rejects(fn()=>Atlas\verifyService(Atlas\canonical($v)),'tampered manifest');
 echo "Protocol checks complete.\n";
+
+// Node-generated BSN registry fixture exercises cross-language domain separation.
+$bsnRaw=file_get_contents($fixtures.'bsn-naming-manifest.json');
+$checked=Atlas\verifyService($bsnRaw);
+check($checked['seat']==='naming.association' && $checked['validUntil']===null,'BSN registry profile without manifest expiry');
+check(in_array('onym:naming-profile:qualified-association-v1',$checked['profiles'],true),'naming profile preserved');
+function bsnSigned(object $v,string $prefix="onym-bsn-np-v1:manifest\n"):string {
+    unset($v->signature);
+    $sk=sodium_crypto_sign_secretkey(sodium_crypto_sign_seed_keypair(str_repeat(chr(41),32)));
+    $v->signature=base64_encode(sodium_crypto_sign_detached($prefix.Atlas\canonical($v),$sk));
+    return Atlas\canonical($v);
+}
+$bsn=json_decode($bsnRaw);
+rejects(fn()=>Atlas\verifyService(bsnSigned(clone $bsn,'')),'BSN signature cannot use generic signature scheme');
+rejects(fn()=>Atlas\verifyService(bsnSigned(clone $bsn,"onym-bsn-np-v1:record\n")),'BSN signature cannot use record domain');
+$t=clone $bsn;$t->namespace='tampered.example';rejects(fn()=>Atlas\verifyService(Atlas\canonical($t)),'tampered BSN manifest');
+$t=clone $bsn;$t->trustRoot=clone $t->trustRoot;$t->trustRoot->publicKey=str_repeat('0',64);rejects(fn()=>Atlas\verifyService(bsnSigned($t)),'BSN trust root must match operator');
+$t=clone $bsn;$t->seat='transport.message';rejects(fn()=>Atlas\verifyService(bsnSigned($t)),'BSN profile cannot exempt another seat');
+$t=clone $bsn;$t->implementationProfileId='onym:naming-implementation:unknown';rejects(fn()=>Atlas\verifyService(bsnSigned($t)),'unknown profile cannot use BSN domain');
+rejects(fn()=>Atlas\verifyService(bsnSigned($t,'')),'unknown profile must retain expiry requirement');
+$t=clone $bsn;$t->validUntil='2000-01-01T00:00:00Z';rejects(fn()=>Atlas\verifyService(bsnSigned($t)),'BSN expiry checked when present');

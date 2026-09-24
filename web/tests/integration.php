@@ -25,3 +25,16 @@ for($i=0;$i<3;$i++)$a->limit('test',3,60);denied(fn()=>$a->limit('test',3,60),'r
 $files=glob($dir.'/published/catalogs/public-services-*.json');ok(count($files)>=8,'immutable history retained');
 $prev=null;foreach($files as $f){$s=json_decode(file_get_contents($f));$map[$s->sequence]=$f;}ksort($map);foreach($map as $f){$args=['verify','snapshot',$f,'--manifest',$dir.'/published/manifest.json'];if($prev)$args=array_merge($args,['--previous',$prev]);$a->runCli($args);$prev=$f;}ok(true,'all published snapshots verify with upstream CLI');
 echo "Integration data: $dir\n";
+
+$raw=file_get_contents(__DIR__.'/../../tests/fixtures/bsn-naming-manifest.json');
+$bsnResult=$a->submit('https://names.example.com/manifest.json');
+ok($bsnResult['state']==='active','BSN profile auto publishes');
+$bsnSnapshot=json_decode(file_get_contents($dir.'/published/catalogs/public-services.json'));
+$bsnEntries=array_values(array_filter($bsnSnapshot->entries,fn($e)=>$e->componentId==='onym:component:atlas-bsn-np'));
+ok(count($bsnEntries)===1 && $bsnEntries[0]->manifest->digest===Atlas\digest($raw),'BSN snapshot pins original signed bytes');
+$a->submit('https://names.example.com/manifest.json');
+ok((int)$a->query('SELECT COUNT(*) FROM services WHERE id=?',['onym:component:atlas-bsn-np'])->fetchColumn()===1,'BSN duplicate submission idempotent');
+$a->runCli(['verify','snapshot',$dir.'/published/catalogs/public-services.json','--manifest',$dir.'/published/manifest.json','--previous',$prev]);
+ok(true,'BSN listing snapshot verifies with upstream CLI');
+$bad=json_decode($raw);$bad->namespace='tampered.example';$raw=json_encode($bad);
+denied(fn()=>$a->submit('https://names.example.com/manifest.json'),'tampered BSN cannot update listing');

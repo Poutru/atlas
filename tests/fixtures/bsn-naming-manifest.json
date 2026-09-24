@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "componentId": "onym:component:atlas-bsn-np",
+  "seat": "naming.association",
+  "operator": "onym:key:fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+  "namespace": "bsn.atlas.predhit.com",
+  "registry": "onym:registry:atlas-bsn",
+  "trustRoot": {
+    "algorithm": "Ed25519",
+    "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565"
+  },
+  "implementationProfileId": "onym:naming-implementation:bsn-stellar-http-v1",
+  "namingProfileId": "onym:naming-profile:qualified-association-v1",
+  "policy": "sha256:7f6d5560fac4890877d02510b692e8bd747d8234f17279ceaf6ca8098f569edc",
+  "endpoints": [
+    {
+      "uri": "https://atlas.predhit.com/bsn-np/v1/",
+      "role": "resolve"
+    },
+    {
+      "uri": "https://atlas.predhit.com/bsn-np/v1/",
+      "role": "issue"
+    }
+  ],
+  "signature": "wiIiXyWTZAhzTXOFw03djzv1wyNCXMTPmCChr/Wb2zDrd6b8EBpC7EEmpuSbU0BuhZ+PGajkwjPK70KnSI9rAA=="
+}

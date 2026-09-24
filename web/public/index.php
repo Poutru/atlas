@@ -6,6 +6,14 @@ header('X-Content-Type-Options: nosniff');header('Referrer-Policy: no-referrer')
 header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);$method=$_SERVER['REQUEST_METHOD'];
 function respond(mixed $data,int $status=200):never{http_response_code($status);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);exit;}
+if(in_array($method,['GET','HEAD'],true)&&$path==='/onym-auth'){header('Location: /onym-auth/',true,301);exit;}
+if(in_array($method,['GET','HEAD'],true)&&$path==='/onym-auth/'){
+    header('Content-Type: text/html; charset=utf-8');header('Cache-Control: no-cache');if($method==='GET')readfile(__DIR__.'/onym-auth/index.html');exit;
+}
+if($method==='GET'&&$path==='/hackathon'){header('Location: /hackathon/',true,301);exit;}
+if($method==='GET'&&$path==='/hackathon/'){
+    header('Content-Type: text/html; charset=utf-8');header('Cache-Control: no-cache');readfile(__DIR__.'/hackathon/index.html');exit;
+}
 try{
     $app=new App();
     if($path==='/health'){respond(['ok'=>true,'service'=>'Atlas']);}
